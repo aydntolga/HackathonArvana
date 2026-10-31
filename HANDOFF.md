@@ -8,6 +8,8 @@ The active system consists of `first-agent.mjs`, `proxy.mjs`, `local-reviewer.mj
 
 The local demo customer website is reached through the observed proxy at port 3001. No real customer integration has been performed. Real customer traffic is a later step requiring an authorized origin and suitable deployment.
 
+The follow-up validation is deliberately sequential: first-agent/proxy tests, independent-reviewer tests, local ETL, then four normal requests to httpbin.org through an isolated proxy. Decision history and hourly review summaries are now available in the dashboard. Baseline checkpoints survive restart for the same upstream, with validation and a 24-hour expiry. See VALIDATION.md for results and limitations.
+
 ## Continue work
 1. Run npm test and inspect README.md before changing the working implementation.
 2. Collect representative benign sessions: slow uploads, client disconnects, server errors, expired authentication, forgotten passwords, shared IP addresses, and legitimate bursts.

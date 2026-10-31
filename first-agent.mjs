@@ -7,7 +7,7 @@ export class FirstAgent {
     this.clock=clock; this.started=clock(); this.maxClients=maxClients;
     this.buckets=new Map(); this.clients=new Map(); this.baseline=[];
     this.active=0; this.total=0; this.completed=0; this.evictions=0;
-    this.salt=randomBytes(32); this.lastBaselineMinute=null;
+    this.salt=randomBytes(32); this.lastBaselineAt=this.started;
   }
   bucket() {
     this.prune();
@@ -46,6 +46,7 @@ export class FirstAgent {
   }
   snapshot() {
     this.prune();
+    this.baseline=this.baseline.filter(sample=>this.clock()-sample.at<=86400000);
     const sum={started:0,completed:0,successful:0,errors:0,authFailures:0,missing:0,aborted:0,upstreamErrors:0,bytesIn:0,bytesOut:0,histogram:LIMITS.map(()=>0)};
     for(const b of this.buckets.values()) for(const key of Object.keys(sum)) {
       if(key==='histogram') b.histogram.forEach((n,i)=>sum.histogram[i]+=n); else sum[key]+=b[key];
@@ -60,17 +61,18 @@ export class FirstAgent {
     if(sum.completed>=20&&errorRate>.1) warnings.push('High server error rate; investigate upstream health, not client intent');
     if(this.baseline.length>=5&&rate>Math.max(10,baselineRate*3)) warnings.push('Traffic exceeds recent baseline; may be legitimate demand');
     if(sum.completed>=20&&(p95==='>30000'||p95>=5000)) warnings.push('Long request lifecycle; slow client or upstream possible');
-    const minute=Math.floor(this.clock()/60000);
-    // Completed non-overlapping windows only, once per minute; freeze during warnings.
-    if(this.clock()-this.started>=60000&&minute!==this.lastBaselineMinute){
-      this.lastBaselineMinute=minute;
-      if(!warnings.length){this.baseline.push({rps:rate});this.baseline=this.baseline.slice(-60);}
+    // At least 60 elapsed seconds between samples, regardless of dashboard polling.
+    if(this.clock()-this.lastBaselineAt>=60000){
+      this.lastBaselineAt=this.clock();
+      const healthy=sum.completed>=20&&sum.successful/sum.completed>=.95&&
+        sum.authFailures===0&&sum.upstreamErrors===0&&sum.aborted===0;
+      if(healthy&&!warnings.length){this.baseline.push({at:this.clock(),rps:rate});this.baseline=this.baseline.slice(-60);}
     }
     return {at:new Date(this.clock()).toISOString(),agent:'first-agent-v1',mode:'observe',
       windowSeconds:seconds,totalRequests:this.total,activeRequests:this.active,completedRequests:this.completed,
       requestsPerSecond:Number(rate.toFixed(2)),window:sum,p95LifecycleMsUpperBound:p95,
       recentClientEstimate:this.clients.size,clientEvictions:this.evictions,
-      baseline:{samples:this.baseline.length,medianRps:baselineRate,state:this.baseline.length>=5?'ready':'warming-up'},
+      baseline:{samples:this.baseline.length,medianRps:median(this.baseline.map(b=>b.rps)),state:this.baseline.length>=5?'ready':'warming-up'},
       proposal:{type:warnings.length?'anomaly-observed':'no-anomaly',suggestedAction:warnings.length?'investigate':'observe',reasons:warnings},
       warnings,decision:'observe',trainedModel:false};
   }

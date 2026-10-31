@@ -5,6 +5,8 @@ data/*.csv
 data/*.partial
 data/telemetry/
 data/hourly-report.json
+data/baseline.json*
+data/external-validation/
 *.local.code-workspace
 .DS_Store
 Thumbs.db

@@ -15,7 +15,7 @@ test('real local website -> proxy -> agent -> reviewer -> telemetry -> hourly ET
   const origin=createDemoSite();origin.listen(0,'127.0.0.1');await once(origin,'listening');
   const agent=new FirstAgent();const proxy=createObservedProxy({agent,target:`http://127.0.0.1:${origin.address().port}`});
   proxy.listen(0,'127.0.0.1');await once(proxy,'listening');
-  const writer=startTelemetry(agent,directory,{intervalMs:60000});
+  const writer=startTelemetry(agent,directory,{intervalMs:60000,reviewer:new LocalReviewer()});
   try{
     const url=`http://127.0.0.1:${proxy.address().port}`;
     for(let i=0;i<20;i++)assert.equal((await fetch(url+'/products')).status,200);
@@ -28,6 +28,17 @@ test('real local website -> proxy -> agent -> reviewer -> telemetry -> hourly ET
     await appendFile(file,'not-json\n{"at":"bad"}\n');
     const report=await runEtl(directory,path.join(directory,'hourly.json'));
     assert.equal(report.invalidLines,2);assert.equal(report.hours.length,1);assert.equal(report.hours[0].samples,1);
+    assert.equal(report.hours[0].reviewedSamples,1);assert.equal(report.hours[0].reviewVerdicts.escalate,1);
     const stored=await readFile(file,'utf8');assert.ok(!stored.includes('127.0.0.1'));assert.ok(!stored.includes('/products'));
   }finally{writer.stop();proxy.closeAllConnections();origin.closeAllConnections();await Promise.all([new Promise(r=>proxy.close(r)),new Promise(r=>origin.close(r))]);await rm(directory,{recursive:true,force:true});}
+});
+test('ETL rejects mismatched reviews without dropping valid telemetry',async()=>{
+  const directory=await mkdtemp(path.join(tmpdir(),'doctor-etl-'));
+  try{
+    const agent=new FirstAgent(),pulse=agent.snapshot();
+    pulse.review=new LocalReviewer().review(pulse);pulse.review.sourceAt='2000-01-01T00:00:00.000Z';
+    await appendFile(path.join(directory,pulse.at.slice(0,10)+'.jsonl'),JSON.stringify(pulse)+'\n');
+    const report=await runEtl(directory,path.join(directory,'report.json'));
+    assert.equal(report.invalidReviews,1);assert.equal(report.hours[0].samples,1);assert.equal(report.hours[0].reviewedSamples,0);
+  }finally{await rm(directory,{recursive:true,force:true});}
 });

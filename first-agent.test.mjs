@@ -27,6 +27,19 @@ test('baseline freezes during error windows',()=>{
   assert.equal(agent.snapshot().baseline.samples,0);
   assert.ok(agent.snapshot().warnings.length);
 });
+test('empty or failed-login windows do not teach a healthy baseline',()=>{
+  let now=0;const agent=new FirstAgent({clock:()=>now});now=61000;
+  assert.equal(agent.snapshot().baseline.samples,0);
+  for(let i=0;i<30;i++)agent.begin().finish({status:401});
+  now=121000;for(let i=0;i<30;i++)agent.begin().finish({status:401});
+  assert.equal(agent.snapshot().baseline.samples,0);
+});
+test('repeated polling across a wall-clock minute does not double-count a baseline window',()=>{
+  let now=0;const agent=new FirstAgent({clock:()=>now});now=119999;
+  for(let i=0;i<30;i++)agent.begin().finish({status:200});
+  assert.equal(agent.snapshot().baseline.samples,1);
+  now=120000;assert.equal(agent.snapshot().baseline.samples,1);
+});
 test('proxy forwards streamed body and methods, strips forged identity, and records completion',async()=>{
   const origin=http.createServer((req,res)=>{
     let body='';req.on('data',chunk=>body+=chunk);

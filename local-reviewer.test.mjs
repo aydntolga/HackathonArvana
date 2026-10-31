@@ -26,3 +26,30 @@ test('slow successful requests are never sufficient evidence for restriction',()
   const result=new LocalReviewer({clock:()=>now}).review(pulse);
   assert.equal(result.diagnosis,'latency-with-uncertain-cause');assert.equal(result.action,'observe');
 });
+test('reviewer catches evidence the worker failed to flag',()=>{
+  const {pulse,now}=fixture(401);assert.equal(pulse.proposal.type,'no-anomaly');
+  assert.equal(new LocalReviewer({clock:()=>now}).review(pulse).relationship,'worker-missed-evidence');
+});
+test('malformed success counts, baseline, histogram and rates result in abstention',()=>{
+  const {pulse,now}=fixture();
+  for(const mutate of [p=>p.window.successful=999,p=>p.window.successful=NaN,p=>p.window.histogram=[0],p=>p.requestsPerSecond=900,p=>p.baseline.medianRps=Infinity,p=>p.baseline.state='ready',p=>p.activeRequests=-1,p=>p.p95LifecycleMsUpperBound='fast']){
+    const malformed=structuredClone(pulse);mutate(malformed);
+    const result=new LocalReviewer({clock:()=>now}).review(malformed);
+    assert.equal(result.relationship,'insufficient-evidence');assert.equal(result.action,'observe');
+  }
+});
+test('legitimate traffic surge asks for evidence instead of restricting users',()=>{
+  const {pulse,now}=fixture();pulse.baseline={samples:5,state:'ready',medianRps:1};
+  const result=new LocalReviewer({clock:()=>now}).review(pulse);
+  assert.equal(result.diagnosis,'possible-legitimate-demand');assert.equal(result.action,'observe');
+});
+test('decision timeline records transitions, deduplicates polling and stays bounded',()=>{
+  let now=0;const reviewer=new LocalReviewer({clock:()=>now});
+  for(let i=0;i<200;i++){
+    const {pulse}=fixture(i%2?503:200);pulse.at=new Date(now).toISOString();
+    reviewer.review(pulse);reviewer.review(pulse);now+=5000;
+  }
+  assert.equal(reviewer.decisions().length,60);
+  const copy=reviewer.decisions();copy[0].reasons.push('outside mutation');
+  assert.ok(!reviewer.decisions()[0].reasons.includes('outside mutation'));
+});

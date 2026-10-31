@@ -21,3 +21,20 @@ async function showEvaluation(){
   }catch{document.querySelector('#evaluation').textContent='Evaluation metadata unavailable';}
 }
 showEvaluation();setInterval(showEvaluation,10000);
+async function showHistory(){
+  try{
+    const [history,report]=await Promise.all([
+      fetch('/api/review-history').then(r=>r.json()),fetch('/api/hourly-report').then(r=>r.json())
+    ]);
+    const cards=history.decisions.slice(-8).reverse().map(decision=>{
+      const card=document.createElement('article');card.className='decision';
+      const title=document.createElement('strong');title.textContent=`${decision.verdict} / ${decision.diagnosis}`;
+      const timestamp=document.createElement('small');timestamp.textContent=`${new Date(decision.at).toLocaleTimeString()} / ${decision.relationship}`;
+      const explanation=document.createElement('p');explanation.textContent=decision.reasons.join(' ');
+      card.append(title,timestamp,explanation);return card;
+    });
+    document.querySelector('#timeline').replaceChildren(...cards);
+    document.querySelector('#etl').textContent=JSON.stringify({...report,hours:report.hours.slice(-6)},null,2);
+  }catch{document.querySelector('#timeline').textContent='Decision history temporarily unavailable';}
+}
+showHistory();setInterval(showHistory,5000);

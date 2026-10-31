@@ -6,3 +6,7 @@ h1 { font-size: clamp(36px, 6vw, 64px); letter-spacing: -.04em; }
 p { color: #b5afc5; font-size: 20px; }
 #status { margin-top: 40px; border: 1px solid #3d3356; padding: 20px; border-radius: 12px; }
 pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #1d182b; padding: 20px; border-radius: 12px; font-size: 13px; }
+.decision { border-left: 3px solid #ac93ff; padding: 16px; margin: 12px 0; background: #1d182b; border-radius: 6px; }
+.decision small { display: block; margin-top: 8px; letter-spacing: normal; }
+.decision p { font-size: 15px; margin-bottom: 0; }
+a { color: #c4b3ff; }
