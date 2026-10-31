@@ -1,0 +1,4 @@
+{
+  "folders": [{ "name": "Server Doctor", "path": "." }],
+  "extensions": { "recommendations": ["ms-vsliveshare.vsliveshare"] }
+}

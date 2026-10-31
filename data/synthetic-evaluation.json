@@ -1,0 +1,57 @@
+{
+  "source": "synthetic offline fixtures",
+  "trainedModel": false,
+  "productionAccuracy": null,
+  "cohorts": [
+    {
+      "name": "slow-success",
+      "malicious": false,
+      "sessions": 500,
+      "workerFlags": 0,
+      "supervisorFlags": 0
+    },
+    {
+      "name": "retry-server-error",
+      "malicious": false,
+      "sessions": 500,
+      "workerFlags": 0,
+      "supervisorFlags": 0
+    },
+    {
+      "name": "shared-nat-success",
+      "malicious": false,
+      "sessions": 500,
+      "workerFlags": 0,
+      "supervisorFlags": 0
+    },
+    {
+      "name": "repeated-missing-link",
+      "malicious": false,
+      "sessions": 500,
+      "workerFlags": 0,
+      "supervisorFlags": 0
+    },
+    {
+      "name": "forgotten-password-retry-loop",
+      "malicious": false,
+      "sessions": 500,
+      "workerFlags": 500,
+      "supervisorFlags": 0
+    },
+    {
+      "name": "synthetic-brute-force",
+      "malicious": true,
+      "sessions": 500,
+      "workerFlags": 500,
+      "supervisorFlags": 0
+    },
+    {
+      "name": "synthetic-path-scan",
+      "malicious": true,
+      "sessions": 500,
+      "workerFlags": 500,
+      "supervisorFlags": 500
+    }
+  ],
+  "warning": "The forgotten-password cohort intentionally has identical observables to brute force. The supervisor abstains on both: fewer false restrictions, but brute force remains unmitigated pending extra evidence. Repeated deterministic fixtures do not establish statistical confidence. Not a production benchmark."
+}

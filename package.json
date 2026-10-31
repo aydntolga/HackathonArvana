@@ -1,0 +1,9 @@
+{
+  "name": "server-doctor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Continuous HTTP observation with an independent local reviewer",
+  "type": "module",
+  "scripts": { "dev": "node --watch server.mjs", "start": "node server.mjs", "test": "node --test", "etl": "node etl.mjs" },
+  "engines": { "node": ">=22" }
+}

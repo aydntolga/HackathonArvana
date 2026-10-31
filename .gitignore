@@ -1,0 +1,10 @@
+.env
+node_modules/
+*.log
+data/*.csv
+data/*.partial
+data/telemetry/
+data/hourly-report.json
+*.local.code-workspace
+.DS_Store
+Thumbs.db
