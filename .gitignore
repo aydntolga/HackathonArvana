@@ -5,6 +5,10 @@ data/*.csv
 data/*.partial
 data/telemetry/
 data/hourly-report.json
+data/models/
+data/realtime-lab/
+data/measurement/
+data/http-research/
 data/baseline.json*
 data/external-validation/
 *.local.code-workspace

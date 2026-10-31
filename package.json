@@ -4,6 +4,24 @@
   "private": true,
   "description": "Continuous HTTP observation with an independent local reviewer",
   "type": "module",
-  "scripts": { "dev": "node --watch server.mjs", "start": "node server.mjs", "test": "node --test", "etl": "node etl.mjs", "validate:external": "node validate-external.mjs" },
-  "engines": { "node": ">=22" }
+  "scripts": {
+    "dev": "node --watch server.mjs",
+    "start": "node server.mjs",
+    "test": "node --test",
+    "etl": "node etl.mjs",
+    "daily": "node daily.mjs",
+    "models:rollback": "node daily.mjs --rollback",
+    "validate:external": "node validate-external.mjs",
+    "test:realtime": "node realtime-lab.mjs",
+    "lab": "node realtime-lab.mjs --serve",
+    "measure:models": "node measure-models.mjs",
+    "research:download": "python download_http_dataset.py",
+    "research:prepare": "node prepare-http-dataset.mjs",
+    "research:train": "python train-http-models.py",
+    "research:stress": "python train-http-models.py --unseen-templates",
+    "research:validate": "node validate-http-models.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
 }

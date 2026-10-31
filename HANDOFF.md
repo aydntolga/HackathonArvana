@@ -4,7 +4,7 @@
 Build Server Doctor for the Arvana hackathon: continuous HTTP observation followed by a separate reviewer that questions the first agent's conclusions. Protect legitimate users with slow connections, retries, shared NAT, and traffic bursts. Keep the four-hour prototype scope.
 
 ## Current implementation
-The active system consists of `first-agent.mjs`, `proxy.mjs`, `local-reviewer.mjs`, `telemetry.mjs`, and `server.mjs`. The reviewer is local and deterministic, as requested; API integration is deferred. It examines measurements independently and never grants live blocking authority. Earlier `guard.mjs` and `supervisor.mjs` experiments remain independently tested.
+The active system consists of `first-agent.mjs`, `proxy.mjs`, `local-reviewer.mjs`, `telemetry.mjs`, and `server.mjs`. The reviewer combines local rules with a separately fitted contextual novelty model; API integration is deferred. Daily ETL feeds both models through source validation, closed-day splits, calibration and a joint promotion gate. See LEARNING.md. It examines measurements independently and never grants live blocking authority. Earlier `guard.mjs` and `supervisor.mjs` experiments remain independently tested.
 
 The local demo customer website is reached through the observed proxy at port 3001. No real customer integration has been performed. Real customer traffic is a later step requiring an authorized origin and suitable deployment.
 

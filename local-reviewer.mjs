@@ -1,6 +1,7 @@
-// Evidence-based local reviewer. No LLM, trained classifier, or calibrated probability.
+import { evaluatePulse } from './local-models.mjs';
+// Independent rules plus learned contextual novelty detection. No attack probability.
 export class LocalReviewer {
-  constructor({clock=Date.now}={}){this.clock=clock;this.history=[];this.timeline=[];this.latest=null;}
+  constructor({clock=Date.now,modelProvider=()=>null}={}){this.clock=clock;this.modelProvider=modelProvider;this.history=[];this.timeline=[];this.latest=null;}
   record(audit){
     const signature=JSON.stringify([audit.verdict,audit.diagnosis,audit.relationship]);
     const previous=this.timeline.at(-1);
@@ -63,6 +64,22 @@ export class LocalReviewer {
     } else {
       audit.diagnosis=baselineReady?'normal-observed-window':'baseline-warming-up';
       audit.reasons.push('No evidence in this window supports automatic restriction.');
+    }
+    audit.model=evaluatePulse(pulse,this.modelProvider(),'reviewer',now);
+    audit.trainedModel=audit.model.trainedModel;
+    if(audit.model.status==='ready'){
+      audit.modelAgreement=pulse.model?.version===audit.model.version
+        ? (Boolean(pulse.model.unusual)===audit.model.unusual?'agree':'disagree'):'worker-model-unavailable-or-different-version';
+      if(audit.model.unusual){
+        audit.reasons.push('Independent contextual model found an unfamiliar combination of measurements; historical neighbors are attached for inspection.');
+        audit.counterHypotheses.push('New legitimate workload','Deployment or infrastructure change','Potential hostile traffic');
+        if(audit.verdict==='observe'){
+          audit.verdict='request-more-evidence';audit.diagnosis='unfamiliar-traffic-context';
+        }
+        if(pulse.proposal?.type==='no-anomaly')audit.relationship='worker-missed-evidence';
+      }else if(pulse.model?.unusual){
+        audit.reasons.push('The worker detected metric drift, but contextual measurements resemble historical reference traffic. Do not infer an attack from volume alone.');
+      }
     }
     if(pulse.proposal?.suggestedAction==='rate-limit'){
       audit.workerRestrictionVetoed=true;

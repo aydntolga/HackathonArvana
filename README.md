@@ -11,6 +11,7 @@ npm run dev
 ```
 
 - Dashboard: http://localhost:3000
+- Product website: http://localhost:3003 (presentation only; no internal APIs)
 - Observed demo customer website: http://localhost:3001
 - Demo origin (bypasses observation): http://localhost:3002
 
@@ -23,24 +24,30 @@ To observe your application, copy `.env.example` to `.env` and set `TARGET_URL` 
 1. **First Agent** observes streaming requests, open requests, completion status, aborts, byte counts, and approximate p95 lifecycle time. It maintains a 60-second window and a bounded baseline of recent healthy windows. Empty windows and failed-login traffic do not train the healthy baseline, and samples must be at least 60 seconds apart.
 2. **Local Reviewer** independently checks numeric consistency, freshness, server failures, ambiguous authentication, slow users, and legitimate demand. It can veto a worker recommendation, flag evidence the worker missed, and ask for more evidence. It runs outside the request path and keeps a bounded decision timeline visible in the dashboard.
 
-Both stages currently use deterministic policies. There is no trained classifier, LLM, API key, or measured production accuracy. The live proxy is observation-only. Existing `guard.mjs` and `supervisor.mjs` are separate earlier policy experiments, not live enforcement.
+Both stages combine deterministic safeguards with separate locally fitted novelty models, enabled only after daily data and evaluation gates pass. The worker learns robust metric distributions; the reviewer learns joint context from historical reference windows. There is no LLM, API key, or measured production detection accuracy. See [LEARNING.md](LEARNING.md) for the training and rollback contract. The live proxy is observation-only. Existing `guard.mjs` and `supervisor.mjs` are separate earlier policy experiments, not live enforcement.
 
 ## Telemetry and ETL
 
-Minute snapshots and matching reviewer decisions are appended to `data/telemetry/YYYY-MM-DD.jsonl` (UTC), with seven-day retention. Bodies, cookies, credentials, raw IP addresses, and query strings are not stored. Client identities use a process-local keyed hash. Disk failures are reported without blocking traffic.
+Minute snapshots and matching reviewer decisions are appended to `data/telemetry/YYYY-MM-DD.jsonl` (UTC), with eight-day retention. Bodies, cookies, credentials, raw IP addresses, and query strings are not stored. Client identities use a process-local keyed hash. Disk failures are reported without blocking traffic.
 
 ```sh
 npm run etl
 npm test
 ```
 
-ETL produces hourly summaries of available snapshots and review verdicts, not exact request totals or unique incident counts. It rejects reviews that do not match their source snapshot. The dashboard shows the last generated report. No operating-system schedule is installed. Tests cover the agent, proxy, reviewer, storage, and ETL, including a real local HTTP flow.
+ETL produces hourly summaries of available snapshots and review verdicts, not exact request totals or unique incident counts. It rejects reviews that do not match their source snapshot. The server automatically runs daily ETL and learning at startup and UTC date rollover while running. The dashboard shows the last generated report and both-model status. No operating-system schedule is installed. Tests cover the agent, proxy, reviewer, storage, and ETL, including a real local HTTP flow.
 
 ### Final integration step: a public test API
 
 After local tests pass, run `npm run validate:external`. It sends exactly four normal requests through an isolated local proxy to [httpbin.org](https://httpbin.org/): GET, a small POST, a delayed response, and a declared 503 response. Requests are sequential, with a one-second pause and no retries. The check stores aggregate telemetry, the review, and an ETL report under the ignored `data/external-validation/` directory. It does not perform a load test, replay attacks, or save echoed response bodies. Public service availability can make this optional check fail; it is not part of `npm test`.
 
-## Dataset
+## Live customer acceptance lab
+
+`npm run lab` starts eight fictional customer websites and a live dashboard at http://localhost:3010. Seven legitimate workloads and one bounded local overload pass through separate proxies, both agents, persisted telemetry and ETL. The approximately two-minute scenario checks detection, slow-user protection, healthy flash crowds, source isolation and recovery. `npm run test:realtime` runs it and exits. See [REALTIME-TESTING.md](REALTIME-TESTING.md) for limits and results interpretation.
+
+## Source dataset
+
+For the separate two-transfer model measurement workflow, run `npm run measure:models`. It trains and evaluates an isolated test pair on a documented synthetic holdout and populates the internal console. See [MEASUREMENT.md](MEASUREMENT.md) for exact metrics, false alarms, limitations and release targets. These are separate from the live HTTP integration results and from production daily learning.
 
 The official CSE-CIC-IDS2018 capture day contains 1,048,575 records: 996,077 benign, 41,508 GoldenEye, and 10,990 Slowloris. Large CSVs are not included in Git. To download and profile the source file, use Python 3.11+:
 
@@ -62,3 +69,7 @@ python download_dataset.py
 - The client estimate is capped at 2,000 identities; evictions reduce identity precision while aggregate counters continue.
 
 See ARCHITECTURE.md and HANDOFF.md for the implementation and next steps.
+
+## HTTP request research models
+
+See [HTTP_RESEARCH.md](HTTP_RESEARCH.md) for the new independently fitted request classifiers, reproducible evaluation, privacy behavior and unseen-endpoint limitations. These supplement the daily service-health models.

@@ -1,9 +1,11 @@
 import { randomBytes, createHmac } from 'node:crypto';
+import { evaluatePulse } from './local-models.mjs';
 
 const LIMITS = [50,100,250,500,1000,2500,5000,10000,30000,Infinity];
 const median = values => [...values].sort((a,b)=>a-b)[Math.floor(values.length/2)] || 0;
 export class FirstAgent {
-  constructor({clock=Date.now, maxClients=2000}={}) {
+  constructor({clock=Date.now, maxClients=2000,modelProvider=()=>null}={}) {
+    this.modelProvider=modelProvider;
     this.clock=clock; this.started=clock(); this.maxClients=maxClients;
     this.buckets=new Map(); this.clients=new Map(); this.baseline=[];
     this.active=0; this.total=0; this.completed=0; this.evictions=0;
@@ -68,12 +70,19 @@ export class FirstAgent {
         sum.authFailures===0&&sum.upstreamErrors===0&&sum.aborted===0;
       if(healthy&&!warnings.length){this.baseline.push({at:this.clock(),rps:rate});this.baseline=this.baseline.slice(-60);}
     }
-    return {at:new Date(this.clock()).toISOString(),agent:'first-agent-v1',mode:'observe',
+    const pulse={at:new Date(this.clock()).toISOString(),agent:'first-agent-v1',mode:'observe',
       windowSeconds:seconds,totalRequests:this.total,activeRequests:this.active,completedRequests:this.completed,
       requestsPerSecond:Number(rate.toFixed(2)),window:sum,p95LifecycleMsUpperBound:p95,
       recentClientEstimate:this.clients.size,clientEvictions:this.evictions,
       baseline:{samples:this.baseline.length,medianRps:median(this.baseline.map(b=>b.rps)),state:this.baseline.length>=5?'ready':'warming-up'},
       proposal:{type:warnings.length?'anomaly-observed':'no-anomaly',suggestedAction:warnings.length?'investigate':'observe',reasons:warnings},
       warnings,decision:'observe',trainedModel:false};
+    pulse.model=evaluatePulse(pulse,this.modelProvider(),'worker',this.clock());
+    pulse.trainedModel=pulse.model.trainedModel;
+    if(pulse.model.unusual){
+      warnings.push('Learned metric deviation; malicious intent is unproven');
+      pulse.proposal={type:'anomaly-observed',suggestedAction:'investigate',reasons:warnings};
+    }
+    return pulse;
   }
 }
